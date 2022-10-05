@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mad Libs Generator</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background-color: #f0f8ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+        
+        .game-container {
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #ff6b6b;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 0 #f0f8ff;
+        }
+        
+        select, button {
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 2px solid #74b9ff;
+            font-family: inherit;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        button {
+            background-color: #74b9ff;
+            color: white;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #0984e3;
+        }
+        
+        .form-container {
+            display: none;
+            margin-top: 20px;
+            text-align: left;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #0984e3;
+        }
+        
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #dfe6e9;
+            border-radius: 5px;
+            font-family: inherit;
+        }
+        
+        .result-container {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f7f7f7;
+            border-radius: 10px;
+            border-left: 5px solid #74b9ff;
+        }
+        
+        .result-title {
+            color: #ff6b6b;
+            margin-top: 0;
+        }
+        
+        .result-story {
+            line-height: 1.6;
+            font-size: 18px;
+        }
+        
+        .error {
+            color: #d63031;
+            font-weight: bold;
+        }
+        
+        .fun-fact {
+            margin-top: 20px;
+            font-style: italic;
+            color: #636e72;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Mad Libs Generator</h1>
+        
+        <div id="story-selection">
+            <p>Choose a Mad Libs story:</p>
+            <select id="story-select">
+                <option value="">Loading stories...</option>
+            </select>
+            <button id="select-btn">Select Story</button>
+        </div>
+        
+        <div id="form-container" class="form-container">
+            <h2 id="story-title"></h2>
+            <div id="inputs-container"></div>
+            <button id="generate-btn">Generate My Story!</button>
+        </div>
+        
+        <div id="result-container" class="result-container">
+            <h3 class="result-title"></h3>
+            <p class="result-story"></p>
+            <button id="new-story-btn">Create Another Story</button>
+            <p class="fun-fact">Did you know? The original Mad Libs was created in 1953 by Leonard Stern and Roger Price!</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const storySelect = document.getElementById('story-select');
+            const selectBtn = document.getElementById('select-btn');
+            const formContainer = document.getElementById('form-container');
+            const inputsContainer = document.getElementById('inputs-container');
+            const storyTitle = document.getElementById('story-title');
+            const generateBtn = document.getElementById('generate-btn');
+            const resultContainer = document.getElementById('result-container');
+            const resultTitle = document.querySelector('.result-title');
+            const resultStory = document.querySelector('.result-story');
+            const newStoryBtn = document.getElementById('new-story-btn');
+            
+            // Load stories from server
+            fetch('/get_stories')
+                .then(response => response.json())
+                .then(data => {
+                    storySelect.innerHTML = '';
+                    data.stories.forEach(story => {
+                        const option = document.createElement('option');
+                        option.value = story.id;
+                        option.textContent = story.title;
+                        storySelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading stories:', error);
+                    storySelect.innerHTML = '<option value="">Error loading stories</option>';
+                });
+            
+            // Story selection
+            selectBtn.addEventListener('click', function() {
+                const storyId = storySelect.value;
+                if (!storyId) return;
+                
+                fetch(`/get_story/${storyId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error);
+                            return;
+                        }
+                        
+                        // Show form and populate inputs
+                        storyTitle.textContent = data.title;
+                        inputsContainer.innerHTML = '';
+                        
+                        data.blanks.forEach(blank => {
+                            const group = document.createElement('div');
+                            group.className = 'input-group';
+                            
+                            const label = document.createElement('label');
+                            label.textContent = blank.prompt + ':';
+                            label.htmlFor = blank.key;
+                            
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.id = blank.key;
+                            input.placeholder = blank.prompt.toLowerCase();
+                            input.required = true;
+                            
+                            group.appendChild(label);
+                            group.appendChild(input);
+                            inputsContainer.appendChild(group);
+                        });
+                        
+                        document.getElementById('story-selection').style.display = 'none';
+                        formContainer.style.display = 'block';
+                    })
+                    .catch(error => {
+                        console.error('Error loading story:', error);
+                        alert('Error loading story details');
+                    });
+            });
+            
+            // Generate story
+            generateBtn.addEventListener('click', function() {
+                const inputs = document.querySelectorAll('#inputs-container input');
+                let allFilled = true;
+                const data = {};
+                
+                inputs.forEach(input => {
+                    if (!input.value.trim()) {
+                        allFilled = false;
+                        input.style.borderColor = '#d63031';
+                    } else {
+                        input.style.borderColor = '#dfe6e9';
+                        data[input.id] = input.value.trim();
+                    }
+                });
+                
+                if (!allFilled) {
+                    alert('Please fill in all the blanks!');
+                    return;
+                }
+                
+                const storyId = storySelect.value;
+                
+                fetch(`/generate_story/${storyId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    
+                    resultTitle.textContent = data.title;
+                    resultStory.textContent = data.story;
+                    
+                    formContainer.style.display = 'none';
+                    resultContainer.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error generating story:', error);
+                    alert('Error generating story');
+                });
+            });
+            
+            // New story button
+            newStoryBtn.addEventListener('click', function() {
+                resultContainer.style.display = 'none';
+                document.getElementById('story-selection').style.display = 'block';
+                storySelect.selectedIndex = 0;
+            });
+        });
+    </script>
+</body>
+</html>
